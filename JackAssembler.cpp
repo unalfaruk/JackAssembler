@@ -5,6 +5,7 @@
 #include <fstream>
 #include <string>
 #include <bitset>
+#include <unordered_map>
 using namespace std;
 
 #define A_COMMAND 0
@@ -13,7 +14,7 @@ using namespace std;
 
 class Parser;
 class Code;
-
+class SymbolTable;
 
 
 class Parser {
@@ -65,7 +66,8 @@ public:
     string dest() {
         if (this->commandType() == C_COMMAND) {
             int indexOfEq = this->currentLine.find("=");
-            return this->currentLine.substr(0, indexOfEq);
+            if (indexOfEq != string::npos)
+                return this->currentLine.substr(0, indexOfEq);
         }
     }
 
@@ -74,6 +76,11 @@ public:
             int indexOfEq = this->currentLine.find("=");
             int indexOfSc = this->currentLine.find(";");
 
+            //Ex -> D;JGT
+            if (indexOfEq == string::npos && indexOfSc != string::npos)
+                return this->currentLine.substr(0, indexOfSc);
+
+            //Ex -> D=D-M
             if (indexOfSc != string::npos)
                 return this->currentLine.substr(indexOfEq+1, indexOfSc-1);
             else
@@ -124,7 +131,7 @@ public:
         if (compASM == "-1")
             compBIN.replace(1, 6, "111010");
         if (compASM == "D")
-            compBIN.replace(1, 6, "111010");
+            compBIN.replace(1, 6, "001100");
         if (compASM == "A" || compASM == "M")
             compBIN.replace(1, 6, "110000");
         if (compASM == "!D")
@@ -185,12 +192,55 @@ public:
     }
 };
 
+class SymbolTable {
+public:
+    unordered_map<string, int> table;
+    SymbolTable() {
+        this->table.clear();
+        this->table["SP"] = 0;
+        this->table["LCL"] = 1;
+        this->table["ARG"] = 2;
+        this->table["THIS"] = 3;
+        this->table["THAT"] = 4;
+        this->table["R0"] = 0;
+        this->table["R1"] = 1;
+        this->table["R2"] = 2;
+        this->table["R3"] = 3;
+        this->table["R4"] = 4;
+        this->table["R5"] = 5;
+        this->table["R6"] = 6;
+        this->table["R7"] = 7;
+        this->table["R8"] = 8;
+        this->table["R9"] = 9;
+        this->table["R10"] = 10;
+        this->table["R11"] = 11;
+        this->table["R12"] = 12;
+        this->table["R13"] = 13;
+        this->table["R14"] = 14;
+        this->table["R15"] = 15;
+        this->table["SCREEN"] = 16384;
+        this->table["KBD"] = 24576;
+    }
+
+    void addEntry(string symbol, int addr) {
+        this->table[symbol] = addr;
+    }
+
+    bool contains(string symbol) {
+        return this->table.count(symbol);
+    }
+
+    int GetAddress(string symbol) {
+        return this->table[symbol];
+    }
+};
+
 int main()
 {
     cout << "Welcome to Jack Assembler!" << endl;
 
     fstream asmFile;
-    asmFile.open("Add.asm");
+    asmFile.open("PongL.asm");
     if (!asmFile.is_open()) {
         cout << "Error! ASM file can not be opened!" << endl;
         return 0;
@@ -225,6 +275,8 @@ int main()
     asmFile.close();
 
     Parser parser;
+    ofstream hackFile;
+    hackFile.open("output.hack");
     cout << "\n\t--- BINARY ---\n" << endl;
     while(parser.hasMoreCommands()) {
         string outLineBIN;
@@ -247,10 +299,9 @@ int main()
             outLineBIN = "0" + bitset<15>(stoi(parser.symbol())).to_string();
         }
         cout << outLineBIN <<endl;
-
+        hackFile << outLineBIN << endl;
     }
-
-
+    hackFile.close();
     return 0;
 }
 // Run program: Ctrl + F5 or Debug > Start Without Debugging menu
