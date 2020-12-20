@@ -28,7 +28,7 @@ public:
     }
 
     Parser() {
-            this->ASMtoParse.open("~tmpASM.asm");
+            this->ASMtoParse.open("~tmpASMTranslated.asm");
     }
 
     ~Parser() {
@@ -47,10 +47,10 @@ public:
     }
 
     int commandType() {
-        if (this->currentLine.substr(0, 1) == "@")
+        if (this->currentLine[0] == '@')
             return A_COMMAND;
 
-        if (this->currentLine.substr(0, 1) == "(")
+        if (this->currentLine[0] == '(')
             return L_COMMAND;
 
         return C_COMMAND;
@@ -249,7 +249,7 @@ int main()
     }    
 
     cout << "ASM file is being initialized..." << endl;
-    cout << "ASM file will be organized...\n\tComment lines & empty lines will be removed...\n\tLabels and variables will be addressed..." << endl;
+    cout << "ASM file will be organized...\n\tComments & empty lines will be removed...\n" << endl;
 
     string line;
     int lineCounter = 0;
@@ -266,6 +266,10 @@ int main()
         //Ignore comment lines and empty lines
         if (line.substr(0, 2) == "//" || line == "")
             continue;
+
+        if (line.find("//")!=string::npos)
+            line.replace(line.find("//"), line.length() - line.find("//"), "");
+
 
         //cout << lineCounter << ". ";
         cout << line << endl;
@@ -293,7 +297,11 @@ int main()
             int lenLine = line.length();
             string label = line.substr(1, lenLine-2);
             if (!symTable.contains(label))
-                symTable.addEntry(label,lineCounter+1);
+                //Don't add +1 to the address
+                //Becase you will remove this line
+                //After the removing, addr+1 will be addr
+                symTable.addEntry(label,lineCounter);
+            continue;
         }            
 
         //cout << lineCounter << ". ";
@@ -321,21 +329,23 @@ int main()
     cout << "\t--- ASM (Second Pass) ---\n" << endl;
     lineCounter = 0;
     while (getline(tmpASMSecondPass, line)) {
+        line.erase(remove_if(line.begin(), line.end(), isblank), line.end()); //Remove blanks
         //Find (xxx) type lines, (This line type is for labels)
-        if (line[3] == '@' && !isdigit(line[4])) {
+        if (line[0] == '@' && !isdigit(line[1])) {
             int lenLine = line.length();
-            string label = line.substr(4, lenLine - 2);
-            if (!symTable.contains(label))
-                //Don't add +1 to the address
-                //Becase you will remove this line
-                //After the removing, addr+1 will be addr
+            string label = line.substr(1, lenLine - 1);
+            if (!symTable.contains(label))                
                 symTable.addEntry(label, symTable.nextFreeAddr++);
             else
-                line.replace(4,label.length(),to_string(symTable.GetAddress(label)));
-        }
+                line.replace(1,label.length(),to_string(symTable.GetAddress(label)));
+        }        
 
         //cout << lineCounter << ". ";
         //cout << line << endl;
+        line.erase(remove_if(line.begin(), line.end(), isblank), line.end()); //Remove blanks
+        if(line[0]!='(')
+            tmpASMTranslated << line << endl;
+
         lineCounter++;
     }
     tmpASMSecondPass.close();
@@ -348,7 +358,7 @@ int main()
     cout << "\n\t--- BINARY ---\n" << endl;
 
     while(parser.hasMoreCommands()) {
-        string outLineBIN;
+        string outLineBIN="";
         parser.advance();
         int cmdType = parser.commandType();
 
