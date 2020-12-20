@@ -5,6 +5,7 @@
 #include <fstream>
 #include <string>
 #include <bitset>
+#include <ctype.h>
 #include <unordered_map>
 using namespace std;
 
@@ -195,6 +196,7 @@ public:
 class SymbolTable {
 public:
     unordered_map<string, int> table;
+    int nextFreeAddr = 16;
     SymbolTable() {
         this->table.clear();
         this->table["SP"] = 0;
@@ -240,17 +242,16 @@ int main()
     cout << "Welcome to Jack Assembler!" << endl;
 
     fstream asmFile;
-    asmFile.open("PongL.asm");
+    asmFile.open("Max.asm");
     if (!asmFile.is_open()) {
         cout << "Error! ASM file can not be opened!" << endl;
         return 0;
-    }
-
-    string line;
+    }    
 
     cout << "ASM file is being initialized..." << endl;
-    cout << "ASM file will be printed without comment lines & empty lines...\n" << endl;
+    cout << "ASM file will be organized...\n\tComment lines & empty lines will be removed...\n\tLabels and variables will be addressed..." << endl;
 
+    string line;
     int lineCounter = 0;
 
     ofstream tmpASM;
@@ -259,13 +260,14 @@ int main()
         cout << "Error! Temporary ASM file can not be created!" << endl;
         return 0;
     }
+
     cout << "\t--- ASM ---\n" << endl;
     while (getline(asmFile, line)) {
         //Ignore comment lines and empty lines
         if (line.substr(0, 2) == "//" || line == "")
             continue;
 
-        cout << lineCounter << ". ";
+        //cout << lineCounter << ". ";
         cout << line << endl;
         lineCounter++;
 
@@ -274,10 +276,77 @@ int main()
     tmpASM.close();
     asmFile.close();
 
+    //First pass part for symbol table
+    fstream tmpASMFirstPass;
+    tmpASMFirstPass.open("~tmpASM.asm");
+    SymbolTable symTable;
+    if (!tmpASMFirstPass.is_open()) {
+        cout << "Error! Temporary ASM file can not be opened!" << endl;
+        return 0;
+    }
+    
+    cout << "\t--- ASM (First Pass) ---\n" << endl;
+    lineCounter = 0;
+    while (getline(tmpASMFirstPass, line)) {        
+        //Find (xxx) type lines, (This line type is for labels)
+        if (line[0]=='(') {
+            int lenLine = line.length();
+            string label = line.substr(1, lenLine-2);
+            if (!symTable.contains(label))
+                symTable.addEntry(label,lineCounter+1);
+        }            
+
+        //cout << lineCounter << ". ";
+        //cout << line << endl;
+        lineCounter++;
+    }
+    tmpASMFirstPass.close();
+    cout << "\t--- First pass completed! ---\n" << endl;
+
+    //Second pass parts for translation
+    fstream tmpASMSecondPass;
+    tmpASMSecondPass.open("~tmpASM.asm");
+    if (!tmpASMSecondPass.is_open()) {
+        cout << "Error! Temporary ASM file can not be opened!" << endl;
+        return 0;
+    }
+
+    ofstream tmpASMTranslated;
+    tmpASMTranslated.open("~tmpASMTranslated.asm");
+    if (!tmpASMTranslated.is_open()) {
+        cout << "Error! Temporary ASM translated file can not be created!" << endl;
+        return 0;
+    }
+
+    cout << "\t--- ASM (Second Pass) ---\n" << endl;
+    lineCounter = 0;
+    while (getline(tmpASMSecondPass, line)) {
+        //Find (xxx) type lines, (This line type is for labels)
+        if (line[3] == '@' && !isdigit(line[4])) {
+            int lenLine = line.length();
+            string label = line.substr(4, lenLine - 2);
+            if (!symTable.contains(label))
+                //Don't add +1 to the address
+                //Becase you will remove this line
+                //After the removing, addr+1 will be addr
+                symTable.addEntry(label, symTable.nextFreeAddr++);
+            else
+                line.replace(4,label.length(),to_string(symTable.GetAddress(label)));
+        }
+
+        //cout << lineCounter << ". ";
+        //cout << line << endl;
+        lineCounter++;
+    }
+    tmpASMSecondPass.close();
+
+
     Parser parser;
     ofstream hackFile;
+
     hackFile.open("output.hack");
     cout << "\n\t--- BINARY ---\n" << endl;
+
     while(parser.hasMoreCommands()) {
         string outLineBIN;
         parser.advance();
