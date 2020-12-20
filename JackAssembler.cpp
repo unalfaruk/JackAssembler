@@ -242,7 +242,7 @@ int main()
     cout << "Welcome to Jack Assembler!" << endl;
 
     fstream asmFile;
-    asmFile.open("Max.asm");
+    asmFile.open("Pong.asm");
     if (!asmFile.is_open()) {
         cout << "Error! ASM file can not be opened!" << endl;
         return 0;
@@ -272,7 +272,7 @@ int main()
 
 
         //cout << lineCounter << ". ";
-        cout << line << endl;
+        //cout << line << endl;
         lineCounter++;
 
         tmpASM << line << endl;
@@ -334,8 +334,11 @@ int main()
         if (line[0] == '@' && !isdigit(line[1])) {
             int lenLine = line.length();
             string label = line.substr(1, lenLine - 1);
-            if (!symTable.contains(label))                
+            if (!symTable.contains(label)) { 
+                //For runtime variables... Ex: ponggame.0
                 symTable.addEntry(label, symTable.nextFreeAddr++);
+                line.replace(1, label.length(), to_string(symTable.GetAddress(label)));
+            }                
             else
                 line.replace(1,label.length(),to_string(symTable.GetAddress(label)));
         }        
@@ -377,7 +380,7 @@ int main()
         if (cmdType == A_COMMAND) {
             outLineBIN = "0" + bitset<15>(stoi(parser.symbol())).to_string();
         }
-        cout << outLineBIN <<endl;
+        //cout << outLineBIN <<endl;
         hackFile << outLineBIN << endl;
     }
     hackFile.close();
