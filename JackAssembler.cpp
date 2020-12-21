@@ -237,19 +237,32 @@ public:
     }
 };
 
-int main()
+int main(int argc, char* argv[])
 {
+    if (strcmp(argv[1], "--help") == 0) {
+        cout << "The .asm file must be located in the same directory with the assembler..." << endl;
+        cout << "Usage: " << argv[0] << " example.asm" << endl;
+        return 0;
+    }
+
+    //File extension checker needed... for the scenario below:
+    //  assembler.exe test.ext
+    if (argc != 2) {
+        cerr << "USAGE: " << argv[0] << " example.asm" << endl;
+        return 0;
+    }
+
     cout << "Welcome to Jack Assembler!" << endl;
 
     fstream asmFile;
-    asmFile.open("Pong.asm");
+    asmFile.open(argv[1]);
     if (!asmFile.is_open()) {
-        cout << "Error! ASM file can not be opened!" << endl;
+        cout << "Error! ASM file("<<argv[1]<<") can not be opened!" << endl;
         return 0;
     }    
 
-    cout << "ASM file is being initialized..." << endl;
-    cout << "ASM file will be organized...\n\tComments & empty lines will be removed...\n" << endl;
+    cout << "ASM file("<<argv[1]<<") is being initialized...\n" << endl;
+    cout << "ASM file will be organized...\n\tComment lines & empty lines will be removed..." << endl;
 
     string line;
     int lineCounter = 0;
@@ -261,7 +274,7 @@ int main()
         return 0;
     }
 
-    cout << "\t--- ASM ---\n" << endl;
+    //cout << "\t--- ASM ---\n" << endl;
     while (getline(asmFile, line)) {
         //Ignore comment lines and empty lines
         if (line.substr(0, 2) == "//" || line == "")
@@ -280,6 +293,8 @@ int main()
     tmpASM.close();
     asmFile.close();
 
+    cout << "\tASM file organized successfully!\n" << endl;
+
     //First pass part for symbol table
     fstream tmpASMFirstPass;
     tmpASMFirstPass.open("~tmpASM.asm");
@@ -289,7 +304,7 @@ int main()
         return 0;
     }
     
-    cout << "\t--- ASM (First Pass) ---\n" << endl;
+    cout << "FIRST PASS: Find labels to add them into the symbol table." << endl;
     lineCounter = 0;
     while (getline(tmpASMFirstPass, line)) {        
         //Find (xxx) type lines, (This line type is for labels)
@@ -309,7 +324,7 @@ int main()
         lineCounter++;
     }
     tmpASMFirstPass.close();
-    cout << "\t--- First pass completed! ---\n" << endl;
+    cout << "\tFirst pass completed successfully!\n" << endl;
 
     //Second pass parts for translation
     fstream tmpASMSecondPass;
@@ -326,11 +341,10 @@ int main()
         return 0;
     }
 
-    cout << "\t--- ASM (Second Pass) ---\n" << endl;
+    cout << "SECOND PASS: Label translation into the address and addressing for runtime variables." << endl;
     lineCounter = 0;
     while (getline(tmpASMSecondPass, line)) {
-        line.erase(remove_if(line.begin(), line.end(), isblank), line.end()); //Remove blanks
-        //Find (xxx) type lines, (This line type is for labels)
+        line.erase(remove_if(line.begin(), line.end(), isblank), line.end()); //Remove blanks if exists at the end of lines...
         if (line[0] == '@' && !isdigit(line[1])) {
             int lenLine = line.length();
             string label = line.substr(1, lenLine - 1);
@@ -352,14 +366,20 @@ int main()
         lineCounter++;
     }
     tmpASMSecondPass.close();
-
+    cout << "\tSecond pass completed successfully!\n" << endl;
 
     Parser parser;
     ofstream hackFile;
 
-    hackFile.open("output.hack");
-    cout << "\n\t--- BINARY ---\n" << endl;
+    //Generate the name of hack file
+    //Remove ".asm" and add ".hack"
+    string inputFile = argv[1];
+    string outputFileName = inputFile.substr(0,inputFile.length()-4)+".hack";
+     
 
+    hackFile.open(outputFileName);
+    //cout << "\n\t--- BINARY ---\n" << endl;
+    cout << "Binary conversion beginning..." << endl;
     while(parser.hasMoreCommands()) {
         string outLineBIN="";
         parser.advance();
@@ -384,6 +404,16 @@ int main()
         hackFile << outLineBIN << endl;
     }
     hackFile.close();
+
+    //Remove temporary files...
+    std::remove("~tmpASMTranslated.asm");
+    std::remove("~tmpASM.asm");
+
+    cout << "\tBinary conversion completed succesfully!" << endl;
+
+    string outputPath = argv[0];
+    cout << "\tThe path of hack file: "<< outputPath.substr(0, outputPath.find_last_of('\\')) << "\\" << outputFileName << endl;
+
     return 0;
 }
 // Run program: Ctrl + F5 or Debug > Start Without Debugging menu
