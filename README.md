@@ -6,10 +6,10 @@ It is a C++ app for the assignment of the 6th lesson of [nand2tetris](https://ww
 
 ## Usage
 
-1. Compile the cod.
+1. Compile the code.
 2. Call it via terminal.
 ```bash
-JackAssemble.exe anyASMFile.asm
+JackAssembler.exe anyASMFile.asm
 ```
 The output .hack file will be created in the running directory.
 
